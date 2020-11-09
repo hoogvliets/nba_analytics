@@ -1,0 +1,86 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+# Loading libraries
+
+```{r}
+library(tidyverse)
+library(caret)
+```
+
+# Loading data
+
+```{r}
+player_stats_raw <- read_csv("./data/player_stats.csv")
+player_bios <- read_csv("./data/player_data.csv")
+```
+
+# Cleaning data
+
+```{r}
+# removing NA's
+players_stats <- player_stats_raw %>% 
+  filter(Year > 1994) %>% 
+  select(-blanl, -blank2, -FTr, -`3PAr`, -`TS%`, -`ORB%`, -`DRB%`, -`TRB%`, -`AST%`, -`STL%`, -`BLK%`, -`TOV%`, -`USG%`, -`FG%`, -`3P%`, -`2P%`, -`eFG%`, -`FT%`) %>% 
+  drop_na() 
+  
+
+# percentages <- as.character(names(player_stats))[grep("%", as.character(names(player_stats)))]
+# na_check[rowSums(is.na(na_check))>0,]
+```
+
+# Configure model
+
+```{r}
+cfg_ctrl <- trainControl(
+  method = "cv",
+  number = 2,
+  summaryFunction = multiClassSummary,
+  classProbs = TRUE,
+  verboseIter = TRUE
+)
+```
+
+
+# Train model
+
+```{r}
+
+train_data <- player_stats %>%
+  select(Pos, GS, TRB, AST, STL, BLK, TOV, PF, PTS) %>% 
+  drop_na()
+
+position_count_old <- table(player_stats$Pos)
+
+glimpse(train_data)
+train_data$GS  <- as.numeric(train_data$GS)
+train_data$STL <- as.numeric(train_data$STL)
+train_data$BLK <- as.numeric(train_data$BLK)
+train_data$TOV <- as.numeric(train_data$TOV)
+
+train_data[train_data$Pos == "SG-SF", ]$Pos <- "SGSF"
+train_data[train_data$Pos == "C-PF", ]$Pos <- "PFC"
+train_data[train_data$Pos == "PF-C", ]$Pos <- "PFC"
+train_data[train_data$Pos == "SF-SG", ]$Pos <- "SGSF"
+train_data[train_data$Pos == "SF-PF", ]$Pos <- "SFPF"
+train_data[train_data$Pos == "PG-SG", ]$Pos <- "PGSG"
+train_data[train_data$Pos == "SG-PG", ]$Pos <- "PGSG"
+train_data[train_data$Pos == "PF-SF", ]$Pos <- "SFPF"
+train_data[train_data$Pos == "PG-SF", ]$Pos <- "SF"
+train_data[train_data$Pos == "SG-PF", ]$Pos <- "SG"
+train_data[train_data$Pos == "C-SF", ]$Pos <- "PF"
+
+position_count_new <- table(player_stats$Pos)
+position_count_old
+position_count_new
+
+model_rf <- train(Pos ~ .,
+                   data = train_data,
+                   method = "rf",
+                   trControl = cfg_ctrl)
+
+
+```
+
